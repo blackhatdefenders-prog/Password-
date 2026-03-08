@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CIPHER — Password Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Barlow+Condensed:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --black:     #080a08;
+  --black2:    #0f110f;
+  --black3:    #161a16;
+  --black4:    #1e231e;
+  --lime:      #b4f600;
+  --lime-dim:  rgba(180,246,0,0.10);
+  --lime-glow: rgba(180,246,0,0.35);
+  --white:     #f0f4e8;
+  --white2:    #a8b49a;
+  --white3:    #5a6655;
+  --white4:    #2d3429;
+  --red:       #ff3d4a;
+  --amber:     #ffb347;
+  --green:     #4dff91;
+  --mono: 'IBM Plex Mono', monospace;
+  --head: 'Barlow Condensed', sans-serif;
+  --t: 0.18s cubic-bezier(0.4,0,0.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{
+  font-family:var(--mono);
+  background:var(--black);
+  color:var(--white);
+  min-height:100vh;
+  display:flex;flex-direction:column;
+  align-items:center;
+  padding:40px 20px 60px;
+  -webkit-font-smoothing:antialiased;
+}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:var(--black)}
+::-webkit-scrollbar-thumb{background:var(--lime)}
+::selection{background:var(--lime);color:var(--black)}
+
+/* BG grid */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(180,246,0,0.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(180,246,0,0.025) 1px,transparent 1px);
+  background-size:48px 48px;
+  pointer-events:none;z-index:0;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+.header{
+  text-align:center;margin-bottom:36px;position:relative;z-index:1;
+}
+.logo-row{
+  display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:10px;
+}
+.logo-box{
+  width:36px;height:36px;background:var(--lime);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--head);font-size:1.3rem;font-weight:900;color:var(--black);
+  clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,7px 100%,0 calc(100% - 7px));
+}
+.logo-name{
+  font-family:var(--head);font-size:2rem;font-weight:900;
+  letter-spacing:4px;color:var(--white);text-transform:uppercase;
+}
+.logo-name span{color:var(--lime)}
+.header-sub{
+  font-size:.62rem;letter-spacing:3px;color:var(--white3);text-transform:uppercase;
+}
+.header-sub em{color:var(--lime);font-style:normal}
+
+/* ── Main card ──────────────────────────────────────────── */
+.card{
+  width:100%;max-width:640px;
+  background:var(--black2);
+  border:1px solid rgba(180,246,0,0.18);
+  position:relative;z-index:1;
+  overflow:hidden;
+}
+
+/* ── Output ─────────────────────────────────────────────── */
+.pw-out{
+  padding:24px 24px 18px;
+  border-bottom:1px solid rgba(180,246,0,0.12);
+  background:var(--black3);
+  position:relative;
+}
+.pw-out::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--lime),rgba(180,246,0,.3),transparent);
+}
+.pw-lbl{
+  font-size:.52rem;letter-spacing:3px;text-transform:uppercase;
+  color:var(--white3);margin-bottom:10px;display:flex;align-items:center;gap:6px;
+}
+.pw-lbl::before{content:'//';color:var(--lime)}
+.pw-value{
+  font-size:clamp(.88rem,2.4vw,1.08rem);font-weight:600;
+  letter-spacing:2px;color:var(--lime);
+  word-break:break-all;line-height:1.6;min-height:2em;
+  transition:opacity .15s;
+}
+.pw-value.flash{animation:flash .25s ease}
+@keyframes flash{0%{opacity:0;transform:translateY(4px)}100%{opacity:1;transform:translateY(0)}}
+
+/* Strength */
+.strength-row{display:flex;align-items:center;gap:10px;margin-top:14px}
+.bars{display:flex;gap:3px;flex:1}
+.bar{flex:1;height:3px;background:var(--white4);transition:background .4s,box-shadow .4s}
+.bar.weak  {background:var(--red);  box-shadow:0 0 6px rgba(255,61,74,.5)}
+.bar.medium{background:var(--amber);box-shadow:0 0 6px rgba(255,179,71,.5)}
+.bar.strong{background:var(--lime); box-shadow:0 0 6px rgba(180,246,0,.5)}
+.str-lbl{font-size:.58rem;letter-spacing:2px;text-transform:uppercase;min-width:52px;text-align:right;font-weight:600}
+.lbl-weak  {color:var(--red)}
+.lbl-medium{color:var(--amber)}
+.lbl-strong{color:var(--lime)}
+
+/* Entropy display */
+.entropy-row{
+  margin-top:8px;font-size:.54rem;letter-spacing:1.5px;color:var(--white3);
+}
+.entropy-val{color:var(--white2)}
+
+/* Actions */
+.pw-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.act-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;
+  padding:7px 14px;cursor:pointer;
+  border:1px solid rgba(180,246,0,0.25);
+  background:transparent;color:var(--lime);
+  transition:all var(--t);
+}
+.act-btn:hover{background:var(--lime-dim);border-color:var(--lime)}
+.act-btn.copied{color:var(--green);border-color:rgba(77,255,145,.4);background:rgba(77,255,145,.08)}
+
+/* ── Controls ────────────────────────────────────────────── */
+.controls{padding:20px 24px}
+.ctrl-block{margin-bottom:20px}
+.ctrl-block:last-child{margin-bottom:0}
+.ctrl-head{
+  font-size:.52rem;letter-spacing:3px;text-transform:uppercase;
+  color:var(--white3);margin-bottom:12px;
+  display:flex;align-items:center;gap:8px;
+}
+.ctrl-head::before{content:'─';color:var(--lime)}
+
+/* Slider */
+.slider-row{display:flex;align-items:center;gap:14px}
+.len-num{
+  font-family:var(--head);font-size:2.2rem;font-weight:900;
+  color:var(--lime);line-height:1;min-width:48px;text-align:center;
+}
+.len-unit{font-size:.48rem;letter-spacing:2px;color:var(--white3);text-align:center;margin-top:2px}
+.sw{flex:1}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:2px;background:var(--white4);outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;
+  background:var(--lime);
+  clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);
+  cursor:pointer;box-shadow:0 0 12px var(--lime-glow);
+  transition:transform var(--t),box-shadow var(--t);
+}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.3);box-shadow:0 0 20px var(--lime-glow)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--lime);border:none;cursor:pointer}
+.range-marks{display:flex;justify-content:space-between;margin-top:6px}
+.range-marks span{font-size:.5rem;color:var(--white3)}
+
+/* Toggles */
+.toggles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tog{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:11px 13px;background:var(--black);border:1px solid var(--white4);
+  cursor:pointer;transition:all var(--t);user-select:none;
+}
+.tog:hover{border-color:rgba(180,246,0,0.25)}
+.tog.on{border-color:rgba(180,246,0,0.4);background:rgba(180,246,0,0.04)}
+.tog-name{font-size:.7rem;font-weight:600;letter-spacing:.5px;color:var(--white)}
+.tog-chars{font-size:.54rem;color:var(--white3);margin-top:2px}
+.pill{
+  width:30px;height:17px;background:var(--black3);
+  border:1px solid var(--white4);border-radius:9px;
+  position:relative;flex-shrink:0;transition:all .3s;
+}
+.pill::after{
+  content:'';position:absolute;top:2px;left:2px;
+  width:11px;height:11px;border-radius:50%;
+  background:var(--white3);transition:all .3s;
+}
+.tog.on .pill{background:rgba(180,246,0,0.15);border-color:var(--lime)}
+.tog.on .pill::after{background:var(--lime);transform:translateX(13px);box-shadow:0 0 7px var(--lime-glow)}
+
+/* ── Generate button ─────────────────────────────────────── */
+.gen-btn-wrap{padding:0 24px 24px}
+.gen-btn{
+  width:100%;padding:16px;
+  font-family:var(--head);font-size:1.2rem;font-weight:900;
+  letter-spacing:3px;text-transform:uppercase;
+  color:var(--black);background:var(--lime);border:none;cursor:pointer;
+  clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));
+  transition:all var(--t);box-shadow:0 0 24px var(--lime-glow);
+  position:relative;overflow:hidden;
+}
+.gen-btn::before{
+  content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+  background:rgba(255,255,255,0.15);transition:left .4s;
+}
+.gen-btn:hover{background:#ccff00;box-shadow:0 0 44px rgba(180,246,0,.65);transform:translateY(-2px)}
+.gen-btn:hover::before{left:100%}
+.gen-btn:active{transform:translateY(0) scale(.99)}
+
+/* ── Tips ────────────────────────────────────────────────── */
+.tips{
+  width:100%;max-width:640px;margin-top:16px;
+  border-left:2px solid var(--lime);
+  background:var(--black2);padding:12px 16px;
+  font-size:.66rem;color:var(--white3);line-height:1.8;
+  position:relative;z-index:1;
+}
+.tips strong{color:var(--lime)}
+.tips-head{font-size:.52rem;letter-spacing:3px;text-transform:uppercase;color:var(--white3);margin-bottom:6px;opacity:.7}
+
+/* ── Footer ──────────────────────────────────────────────── */
+.footer{
+  margin-top:28px;font-size:.54rem;letter-spacing:2px;
+  color:var(--white4);text-transform:uppercase;
+  text-align:center;position:relative;z-index:1;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media(max-width:520px){
+  body{padding:24px 14px 48px}
+  .toggles{grid-template-columns:1fr}
+  .pw-value{font-size:.82rem;letter-spacing:1px}
+  .logo-name{font-size:1.5rem}
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo-row">
+    <div class="logo-box">C</div>
+    <div class="logo-name">Ci<span>pher</span></div>
+  </div>
+  <div class="header-sub">Cryptographic Password Generator &nbsp;·&nbsp; <em>100% Client-Side</em></div>
+</div>
+
+<!-- Main Card -->
+<div class="card">
+
+  <!-- Output -->
+  <div class="pw-out">
+    <div class="pw-lbl">Generated Password</div>
+    <div class="pw-value" id="pwValue" aria-live="polite">Click Generate</div>
+
+    <!-- Strength -->
+    <div class="strength-row">
+      <div class="bars">
+        <div class="bar" id="b1"></div>
+        <div class="bar" id="b2"></div>
+        <div class="bar" id="b3"></div>
+      </div>
+      <div class="str-lbl" id="strLbl">—</div>
+    </div>
+
+    <!-- Entropy -->
+    <div class="entropy-row" id="entropyRow"></div>
+
+    <!-- Actions -->
+    <div class="pw-actions">
+      <button class="act-btn" id="copyBtn">⧉ Copy</button>
+      <button class="act-btn" id="regenBtn">↺ Regenerate</button>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+
+    <!-- Length -->
+    <div class="ctrl-block">
+      <div class="ctrl-head">Password Length</div>
+      <div class="slider-row">
+        <div>
+          <div class="len-num" id="lenNum">16</div>
+          <div class="len-unit">chars</div>
+        </div>
+        <div class="sw">
+          <input type="range" id="lenSlider" min="8" max="64" value="16" aria-label="Password length">
+          <div class="range-marks"><span>8</span><span>64</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Character sets -->
+    <div class="ctrl-block">
+      <div class="ctrl-head">Character Sets</div>
+      <div class="toggles">
+        <div class="tog on" data-key="upper" tabindex="0" role="checkbox" aria-checked="true">
+          <div><div class="tog-name">Uppercase</div><div class="tog-chars">A B C … Z</div></div>
+          <div class="pill"></div>
+        </div>
+        <div class="tog on" data-key="lower" tabindex="0" role="checkbox" aria-checked="true">
+          <div><div class="tog-name">Lowercase</div><div class="tog-chars">a b c … z</div></div>
+          <div class="pill"></div>
+        </div>
+        <div class="tog on" data-key="numbers" tabindex="0" role="checkbox" aria-checked="true">
+          <div><div class="tog-name">Numbers</div><div class="tog-chars">0 1 2 … 9</div></div>
+          <div class="pill"></div>
+        </div>
+        <div class="tog" data-key="special" tabindex="0" role="checkbox" aria-checked="false">
+          <div><div class="tog-name">Special</div><div class="tog-chars">! @ # $ % …</div></div>
+          <div class="pill"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Generate button -->
+  <div class="gen-btn-wrap">
+    <button class="gen-btn" id="genBtn">⚡ Generate Password</button>
+  </div>
+</div>
+
+<!-- Tips -->
+<div class="tips">
+  <div class="tips-head">// Security Tips</div>
+  <strong>20+ chars</strong> with all sets = nearly uncrackable &nbsp;·&nbsp;
+  Store in a <strong>password manager</strong> &nbsp;·&nbsp;
+  <strong>Never reuse</strong> passwords &nbsp;·&nbsp;
+  Enable <strong>2FA</strong> on all critical accounts
+</div>
+
+<!-- Footer -->
+<div class="footer">© 2025 CIPHER &nbsp;·&nbsp; Powered by crypto.getRandomValues() &nbsp;·&nbsp; Zero data transmitted</div>
+
+<script>
+"use strict";
+
+const POOLS = {
+  upper:   "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  lower:   "abcdefghijklmnopqrstuvwxyz",
+  numbers: "0123456789",
+  special: "!@#$%^&*()-_=+[]{}|;:,.<>?/~",
+};
+
+/* Cryptographically secure random integer [0, max) */
+function csRand(max) {
+  const buf = new Uint32Array(1);
+  const limit = Math.floor((0xFFFFFFFF + 1) / max) * max;
+  do { crypto.getRandomValues(buf); } while (buf[0] >= limit);
+  return buf[0] % max;
+}
+
+/* Fisher-Yates shuffle via CSPRNG */
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = csRand(i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/* Generate password */
+function generatePassword(length, opts) {
+  const enabled = Object.keys(POOLS).filter(k => opts[k]);
+  if (!enabled.length) return "";
+  const pool = enabled.map(k => POOLS[k]).join("");
+  const chars = enabled.map(k => POOLS[k][csRand(POOLS[k].length)]);
+  for (let i = chars.length; i < length; i++) chars.push(pool[csRand(pool.length)]);
+  return shuffle(chars).join("");
+}
+
+/* Shannon entropy */
+function entropy(len, opts) {
+  let n = 0;
+  if (opts.upper)   n += 26;
+  if (opts.lower)   n += 26;
+  if (opts.numbers) n += 10;
+  if (opts.special) n += POOLS.special.length;
+  return len * Math.log2(n || 1);
+}
+
+function getStrength(e) {
+  if (e < 40) return { level:1, key:"weak",   label:"WEAK"   };
+  if (e < 72) return { level:2, key:"medium", label:"MEDIUM" };
+  return             { level:3, key:"strong", label:"STRONG" };
+}
+
+/* DOM refs */
+const pwValue   = document.getElementById("pwValue");
+const copyBtn   = document.getElementById("copyBtn");
+const regenBtn  = document.getElementById("regenBtn");
+const genBtn    = document.getElementById("genBtn");
+const lenSlider = document.getElementById("lenSlider");
+const lenNum    = document.getElementById("lenNum");
+const strLbl    = document.getElementById("strLbl");
+const entropyRow= document.getElementById("entropyRow");
+const bars      = [document.getElementById("b1"), document.getElementById("b2"), document.getElementById("b3")];
+const toggles   = document.querySelectorAll(".tog");
+
+const opts = { upper:true, lower:true, numbers:true, special:false };
+
+function render() {
+  const len = parseInt(lenSlider.value, 10);
+  const pw  = generatePassword(len, opts);
+
+  pwValue.textContent = pw || "Select at least one character set";
+  pwValue.classList.remove("flash");
+  void pwValue.offsetWidth;
+  pwValue.classList.add("flash");
+
+  const e = entropy(len, opts);
+  const s = getStrength(e);
+
+  bars.forEach((b, i) => { b.className = "bar"; if (i < s.level) b.classList.add(s.key); });
+  strLbl.textContent = pw ? s.label : "—";
+  strLbl.className   = `str-lbl lbl-${s.key}`;
+  entropyRow.textContent = pw ? `// Entropy: ~${Math.round(e)} bits` : "";
+}
+
+/* Toggles */
+toggles.forEach(t => {
+  const key = t.dataset.key;
+  function toggle() {
+    const active = Object.values(opts).filter(Boolean).length;
+    if (opts[key] && active === 1) return;
+    opts[key] = !opts[key];
+    t.classList.toggle("on", opts[key]);
+    t.setAttribute("aria-checked", opts[key]);
+    render();
+  }
+  t.addEventListener("click", toggle);
+  t.addEventListener("keydown", e => { if (e.key===" "||e.key==="Enter"){e.preventDefault();toggle();} });
+});
+
+/* Slider */
+lenSlider.addEventListener("input", () => { lenNum.textContent = lenSlider.value; render(); });
+
+/* Buttons */
+genBtn.addEventListener("click", render);
+regenBtn.addEventListener("click", render);
+
+copyBtn.addEventListener("click", async () => {
+  const pw = pwValue.textContent;
+  if (!pw || pw.startsWith("Select")) return;
+  try {
+    await navigator.clipboard.writeText(pw);
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = pw; ta.style.cssText = "position:fixed;opacity:0;";
+    document.body.appendChild(ta); ta.select();
+    document.execCommand("copy"); document.body.removeChild(ta);
+  }
+  copyBtn.textContent = "✓ Copied!";
+  copyBtn.classList.add("copied");
+  setTimeout(() => { copyBtn.textContent = "⧉ Copy"; copyBtn.classList.remove("copied"); }, 2000);
+});
+</script>
+</body>
+</html>
